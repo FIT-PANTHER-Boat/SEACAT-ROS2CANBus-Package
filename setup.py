@@ -22,7 +22,8 @@ setup(
         'console_scripts': [
             'talker = ros2_can_bridge.CANSimplePubNode:main',
             'listener = ros2_can_bridge.CANSimpleSubNode:main',
-            'bridge = ros2_can_bridge.ROS2CANNode:main'
+            'bridge = ros2_can_bridge.ROS2CANNode:main',
+            'vesc_node = ros2_can_bridge.VESCCANNode:main'
         ],
     },
 )
