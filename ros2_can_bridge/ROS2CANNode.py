@@ -3,7 +3,7 @@
 # https://github.com/ROS4SPACE/ros2can_bridge
 #
 # Last modified by: Braidan Duffy
-# Last data modified: 04/21/2023
+# Last data modified: 05/05/2023
 
 import can
 import rclpy
@@ -31,18 +31,17 @@ class ROS2CANNode(Node):
         self.topicname_receive = f"CAN/{self.bus_name}/receive"
         self.topicname_transmit = f"CAN/{self.bus_name}/transmit"
 
-        # Set up the ROS2 publisher/receivers
+        # Set up the ROS2 publisher/subscribers
         self.publisher_ = self.create_publisher(CANFrame, 
-            self.topicname_receive, 
-            10)
+                                                self.topicname_receive, 
+                                                10)
         self.test_publisher_ = self.create_publisher(CANFrame, 
-            self.topicname_transmit, 
-            10)
-        self.subscription_ = self.create_subscription(
-            CANFrame,
-            self.topicname_transmit,
-            self.CAN_send,
-            10)
+                                                     self.topicname_transmit, 
+                                                     10)
+        self.subscription_ = self.create_subscription(CANFrame, 
+                                                      self.topicname_transmit, 
+                                                      self.CAN_send, 
+                                                      10)
 
         self.get_logger().info(f"ROS2 to CAN bus topic: {self.topicname_transmit}")
         self.get_logger().info(f"CAN bus to ROS2 topic: {self.topicname_receive}")
@@ -59,6 +58,7 @@ class ROS2CANNode(Node):
         self.get_logger().info(f"Sent CAN message with ID: {_frame.arbitration_id} and Data: {_frame.data}")
 
     def CAN_listener(self):
+        # while True:
         message = CANFrame()
         can_msg = self.bus.recv()	# Receive a CAN message 
         message.id = can_msg.arbitration_id	#Extract the CAN ID from the receieved message
