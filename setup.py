@@ -4,7 +4,7 @@ package_name = 'ros2_can_bridge'
 
 setup(
     name=package_name,
-    version='0.0.0',
+    version='1.0.0',
     packages=[package_name],
     data_files=[
         ('share/ament_index/resource_index/packages',
@@ -13,10 +13,10 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='seacat',
-    maintainer_email='seacat@todo.todo',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    maintainer='Braidan',
+    maintainer_email='bduffy2018@my.fit.edu',
+    description='A package that contains nodes that enable ROS to interface with a physical CAN bus and the VESC.',
+    license='MIT',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [

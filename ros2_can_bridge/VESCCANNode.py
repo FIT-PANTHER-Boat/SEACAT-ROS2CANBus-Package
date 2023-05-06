@@ -23,7 +23,7 @@ from std_msgs.msg import Bool, Int16, Int32
 __author__ = "Braidan Duffy"
 __copyright__ = "Copyright 2023, PANTHER Boat Team"
 __credits__ = ["Braidan Duffy"]
-__license__ = "GPL"
+__license__ = "MIT"
 __version__ = "1.0.1"
 __maintainer__ = "Braidan Duffy"
 __email__ = "bduffy2018@my.fit.edu"
