@@ -1,11 +1,34 @@
 #!/usr/bin/python3
+"""
+Simple example of a publisher node that receives a CAN bus frame and directly publishes it to a ROS topic
+
+Date Created: 05/01/2023
+Date Modified: 05/06/2023
+
+CHANGELOG:
+v1.0.0 - Initial Release
+v1.0.1 - Updated docs
+"""
 
 import can
 import rclpy
 from rclpy.node import Node
 from seacat_msg.msg import CANFrame
 
+__author__ = "Braidan Duffy"
+__copyright__ = "Copyright 2023, PANTHER Boat Team"
+__credits__ = ["Braidan Duffy"]
+__license__ = "GPL"
+__version__ = "1.0.1"
+__maintainer__ = "Braidan Duffy"
+__email__ = "bduffy2018@my.fit.edu"
+__status__ = "Example"
+
+
 class CANSimplePubNode(Node):
+	"""A simple node for publishes received CAN messages directly to a ROS topic
+	"""
+ 
 	def __init__(self, can_intr: str):
 		super().__init__('can_simple_pub_node')
 
@@ -21,6 +44,12 @@ class CANSimplePubNode(Node):
 			10)
 
 	def publish_can_data(self):
+		"""Constantly listen for CAN messages and send them to a ROS topic
+		
+  		Note: This is **NOT** the proper way to execute this command.
+		This function should be assigned to a timer ('self.create_timer(PERIOD_S, self.publish_can_data)') where PERIOD_S is how often the function is called.
+		The 'while True' method blocks all other functions in the node.
+		"""
 		while True:
 			message = CANFrame()
 			can_msg = self.bus.recv()	# Receive a CAN message 
@@ -31,12 +60,13 @@ class CANSimplePubNode(Node):
 
 			self.publisher_.publish(message) # Publish the ROS2 message to the "can_data" topic
 
+
 def main (args=None):
 	rclpy.init(args=args)
-	can_bridge_node = CANSimplePubNode()
-	can_bridge_node.publish_can_data()	#Start publishing CAN data
-	rclpy.spin(can_bridge_node)		#Spin the ROS2 node
-	can_bridge_node.destroy_node()
+	node = CANSimplePubNode()
+	node.publish_can_data()
+	rclpy.spin(node)
+	node.destroy_node()
 	rclpy.shutdown()
 
 if __name__ == '__main__':

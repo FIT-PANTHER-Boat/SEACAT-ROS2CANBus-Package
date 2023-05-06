@@ -1,10 +1,44 @@
-import can
+#!/usr/bin/python3
+"""
+A node that handles calculations and CAN interractions with the VESC version 6.X
+
+Date created: 05/03/2023
+Date modified: 05/06/2023
+
+CHANGELOG:
+v1.0.0 - Initial Release
+v1.0.1 - Updated docs
+
+TODO:
+- Add exception handling for KeyboardInterrupt
+- Add support for sending VESC status messages to ROS topics
+- Add support for custom ROS messages (e.g. Throttle, VESCStatus, etc.)
+"""
+
 import rclpy
 from rclpy.node import Node
-from seacat_msg.msg import CANFrame
+from seacat_msg.msg import CANFrame, Throttle
 from std_msgs.msg import Bool, Int16, Int32
 
+__author__ = "Braidan Duffy"
+__copyright__ = "Copyright 2023, PANTHER Boat Team"
+__credits__ = ["Braidan Duffy"]
+__license__ = "GPL"
+__version__ = "1.0.1"
+__maintainer__ = "Braidan Duffy"
+__email__ = "bduffy2018@my.fit.edu"
+__status__ = "Production"
+
 class VESCCANNode(Node):
+    """
+    A node that acts as the software representation of the VESC within the ROS network.
+    Handles appropriate calculations and CAN bus messages to drive the VESC V6.X
+    
+    Parameters:
+        bus_name (str): the CAN bus interface the VESC is connected. Default: 'can0'
+        vesc_id (int): the CAN ID of the VESC (set by the VESC tool). Default: 126
+        side (str): which side of SEACAT the VESC is on. Default: 'port'
+    """
     # Message IDs (Note: Must bitshift left 8 and add 'vesc_id' for valid message ID)
     # Refer to the SEACAT CAN ICD for additional details
     VESC_MESSAGE_PREFIXES = {
@@ -23,7 +57,7 @@ class VESCCANNode(Node):
         "CMD_STORE_CURRENT_LIMIT"           : 22, # Store the output current limit to memory
         "CMD_SET_INPUT_CURRENT_LIMIT"       : 23, # Set the input current limit
         "CMD_STORE_INPUT_CURRENT_LIMIT"     : 24, # Store the input current limit to memory
-        "STATUS_5"                          : 16  # Periodic status of motor speed (tachometer), input voltage, and unknown
+        "STATUS_5"                          : 27  # Periodic status of motor speed (tachometer), input voltage, and unknown
     }
     VESC_MESSAGE_IDS: dict
     BUS_NAME: str
@@ -90,41 +124,75 @@ class VESCCANNode(Node):
         self.get_logger().info(f"Listening for throttle commands from: {self.topicname_throttle}")
     
     
+    # =============================
     # === SUBSCRIPTION HANDLERS ===
+    # =============================
     
     
-    def CAN_parse(self, msg: CANFrame):     
-        if msg.id == self.VESC_MESSAGE_IDS["STATUS_1"]:
+    def CAN_parse(self, msg: CANFrame):
+        """
+        Parses certain messages that are reported to the CAN bus receive ROS topic and reports appropriate data to other ROS topics.
+        Typically, these will be status messages from the VESC (see SEACAT CAN ICD for more information).
+        
+        Args:
+            msg (CANFrame): A CAN frame published to the receive ROS topic by the CAN bridge
+        """
+        if msg.id == self.VESC_MESSAGE_IDS["STATUS_1"]: # Check if message is a VESC STATUS_1
             self.get_logger().debug(f"Received VESC Status 1 update message with data: {msg.data}")
             self.publisher_motorspeed.publish(Int32(data=int.from_bytes(msg.data[0:3], "big")))
             self.publisher_current.publish(Int16(data=int.from_bytes(msg.data[4:5], "big")))
             self.publisher_dutycycle.publish(Int16(data=int.from_bytes(msg.data[6:7], "big")))
-        else:
+        else: # If message does not match anything desired, ignore
             return
     
-    
     def handle_throttle(self, msg: Int16):
-        self.get_logger().info(f"Received throttle command for {msg.data} us")
+        """
+        Receives a throttle message from the ROS topic and translates it to an appropriate value for the VESC.
+        Note: typically, this throttle command will be in microseconds of PWM signal.
+        1100 us - Full reverse, 1500 us - Netural, 1900 - Full forward.
+        The VESC expects a duty cycle command of [-1E6, 1E6] where negative is reverse and positive is forward
+
+        Args:
+            msg (Int16): the throttle message from the ROS topic containing the PWM information
+        """
+        self.get_logger().debug(f"Received throttle command for {msg.data} us")
         _motor_dc = bytearray(int(self._map(msg.data, 1100, 1900, -1E5, 1E5)).to_bytes(4, "big", signed=True))
-        self.get_logger().info(f"Convert to array: {_motor_dc}")
+        self.get_logger().debug(f"Convert to array: {_motor_dc}")
         _msg = CANFrame(id=self.VESC_MESSAGE_IDS["CMD_DUTY_CYCLE"],
                         dlc=len(_motor_dc),
-                        data=_motor_dc)
+                        data=_motor_dc,
+                        eff=True)
         self.publisher_can.publish(_msg)
         
-        
+
+    # =========================
     # === UTILITY FUNCTIONS ===
+    # =========================
     
     
     def _map(self, x, in_min, in_max, out_min, out_max):
+        """
+        Maps a value from one number range to another.
+        Does not perform any rounding
+
+        Args:
+            x: the intial value to be converted
+            in_min: the minimal value of the input range
+            in_max: the maximum value of the input range
+            out_min: the minimum value of the output range
+            out_max: the maximum value of the output range
+
+        Returns:
+            num: the converted initial value in the new range
+        """
         return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
         
 
 def main(args=None):
     rclpy.init(args=args)
-    vesc_bridge_node = VESCCANNode()
-    rclpy.spin(vesc_bridge_node)		#Spin the ROS2 node
-    vesc_bridge_node.destroy_node()
+    node = VESCCANNode()
+    rclpy.spin(node)
+    node.destroy_node()
     rclpy.shutdown()
 
 if __name__ == '__main__':
